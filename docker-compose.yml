@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: accounting-postgres
+    environment:
+      # 用户名
+      POSTGRES_USER: accounting
+      # 密码
+      POSTGRES_PASSWORD: accounting
+      # 数据库名
+      POSTGRES_DB: accounting_dev
+    # 端口
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
