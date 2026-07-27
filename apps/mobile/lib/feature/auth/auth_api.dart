@@ -36,4 +36,15 @@ class AuthApi {
 
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> me(String token) async {
+    final uri = Uri.parse("$baseUrl/api/v1/auth/me");
+
+    final response = await http.get(
+      uri,
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
 }

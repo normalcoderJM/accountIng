@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/app_gate.dart';
 import 'package:mobile/feature/auth/auth_page.dart';
 
 void main() {
@@ -15,7 +16,7 @@ class MainPage extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
-      home: AuthPage(),
+      home: AppGate(),
     );
   }
 }

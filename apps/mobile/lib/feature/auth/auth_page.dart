@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/token_storage.dart';
 
 import "auth_api.dart";
 
 class AuthPage extends StatefulWidget {
-  const AuthPage({super.key});
+  // 加成功的回调
+  const AuthPage({super.key, required this.onLoginSuccess});
+
+  final VoidCallback onLoginSuccess;
 
   @override
   State<AuthPage> createState() => _AuthPageState();
@@ -15,6 +19,8 @@ class _AuthPageState extends State<AuthPage> {
   // 密码controller
   final passwordController = TextEditingController();
   final authApi = AuthApi(baseUrl: "http://localhost:8080");
+  // 存token
+  final tokenStorage = TokenStorage();
   bool loading = false;
   String message = '';
 
@@ -28,36 +34,68 @@ class _AuthPageState extends State<AuthPage> {
 
   // 注册请求
   Future<void> register() async {
-    setState(() {
-      loading = true;
-      message = '';
-    });
-    final result = await authApi.register(
-      email: emailController.text,
-      password: passwordController.text,
-    );
-    print("$result 当前login");
+    try {
+      setState(() {
+        loading = true;
+        message = '';
+      });
+      final result = await authApi.register(
+        email: emailController.text,
+        password: passwordController.text,
+      );
+      print("$result 当前注册");
 
-    setState(() {
-      loading = false;
-      message = result.toString();
-    });
+      setState(() {
+        loading = false;
+        message = result.toString();
+      });
+    } catch (e) {
+      setState(() {
+        loading = false;
+        message = "注册失败";
+      });
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
   }
 
   Future<void> login() async {
-    setState(() {
-      loading = true;
-      message = '';
-    });
-    final result = await authApi.login(
-      email: emailController.text,
-      password: passwordController.text,
-    );
-    print("$result 当前login");
-    setState(() {
-      loading = false;
-      message = result.toString();
-    });
+    try {
+      setState(() {
+        loading = true;
+        message = '';
+      });
+      final result = await authApi.login(
+        email: emailController.text,
+        password: passwordController.text,
+      );
+      // 登录成功保存token到本地存储 下次app启动时直接读取
+      final token = result["data"]?["token"] as String?;
+      // 登陆成功
+      if (token != null) {
+        await tokenStorage.saveToken(token);
+        widget.onLoginSuccess();
+      }
+      print("$result 当前login");
+      setState(() {
+        loading = false;
+        message = result["message"]?.toString() ?? "登录失败";
+      });
+    } catch (e) {
+      print("登录失败 $e");
+      await tokenStorage.clearToken();
+
+      setState(() {
+        loading = false;
+        message = "登录失败 $e";
+      });
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
   }
 
   // 视图层
@@ -100,7 +138,7 @@ class _AuthPageState extends State<AuthPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Text(message),
+                  Text(message),
                 ],
               ),
           ],
