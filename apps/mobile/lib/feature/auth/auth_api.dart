@@ -14,6 +14,7 @@ class AuthApi {
     required String password,
   }) async {
     final uri = Uri.parse('$baseUrl/api/v1/auth/register');
+    print("url");
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},
