@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/feature/transaction/transaction.dart';
 import 'package:mobile/feature/transaction/transaction_api.dart';
+import 'package:mobile/feature/transaction/add_transaction.dart';
 import '../../core/token_storage.dart';
 
 class HomePage extends StatefulWidget {
@@ -110,6 +111,18 @@ class _HomePageState extends State<HomePage> {
             itemCount: transactions.length,
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (context) => const AddTransaction()),
+          );
+          if (created == true) {
+            loadTransaction();
+          }
+        },
+        child: Icon(Icons.add),
       ),
     );
   }
