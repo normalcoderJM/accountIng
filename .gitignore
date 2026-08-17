@@ -31,3 +31,16 @@ apps/mobile/android/.gradle/
 apps/mobile/ios/build/
 apps/mobile/ios/.symlinks/
 apps/mobile/ios/Pods/
+
+# Node 本地依赖
+node_modules/
+
+# 图片矢量化生成结果
+vectorized/
+vectorized-crisp/
+vectorized-hq/
+vectorized-smooth/
+
+# 临时图片处理工具
+native_potrace_logos.js
+smooth_vectorize_logos.js

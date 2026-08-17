@@ -1,50 +1,37 @@
-import "dart:convert";
+import "package:mobile/core/api_client.dart";
 
-import "package:http/http.dart" as http;
-
-const baseUrl = "http://localhost:8080";
+// const baseUrl = "http://localhost:8080";
 
 class AuthApi {
-  AuthApi({required this.baseUrl});
+  AuthApi({required this.apiClient});
 
-  final String baseUrl;
-
+  final ApiClient apiClient;
+  // 注册接口
   Future<Map<String, dynamic>> register({
     required String email,
     required String password,
-  }) async {
-    final uri = Uri.parse('$baseUrl/api/v1/auth/register');
-    final response = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({"email": email, "password": password}),
+  }) {
+    return apiClient.post(
+      "/api/v1/auth/register",
+      requiredAuth: false,
+      body: {"email": email, "password": password},
     );
-
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  // 登录接口
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-  }) async {
-    final uri = Uri.parse('$baseUrl/api/v1/auth/login');
-    final response = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({"email": email, "password": password}),
+  }) {
+    return apiClient.post(
+      "/api/v1/auth/login",
+      requiredAuth: false,
+      body: {"email": email, "password": password},
     );
-
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> me(String token) async {
-    final uri = Uri.parse("$baseUrl/api/v1/auth/me");
-
-    final response = await http.get(
-      uri,
-      headers: {"Authorization": "Bearer $token"},
-    );
-
-    return jsonDecode(response.body) as Map<String, dynamic>;
+  // 校验登录状态接口
+  Future<Map<String, dynamic>> me() {
+    return apiClient.get("/api/v1/auth/me");
   }
 }

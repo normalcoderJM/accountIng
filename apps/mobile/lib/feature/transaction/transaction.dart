@@ -1,4 +1,6 @@
 // 类比前端的interface
+enum TransactionChange { created, updated, deleted }
+
 class Transaction {
   const Transaction({
     required this.id,

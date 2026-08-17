@@ -1,44 +1,55 @@
-import "dart:convert";
-
-import "package:http/http.dart" as http;
+import "package:mobile/core/api_client.dart";
 
 class TransactionApi {
-  TransactionApi({required this.baseUrl});
+  TransactionApi({required this.apiClient});
 
-  final String baseUrl;
-
-  Future<Map<String, dynamic>> list(String token) async {
-    final uri = Uri.parse("$baseUrl/api/v1/transactions");
-
-    final response = await http.get(
-      uri,
-      headers: {"Authorization": "Bearer $token"},
-    );
-    return jsonDecode(response.body) as Map<String, dynamic>;
+  final ApiClient apiClient;
+  // 连接超时时间
+  static const requestTimeout = Duration(seconds: 10);
+  // 账单列表接口
+  Future<Map<String, dynamic>> list() {
+    return apiClient.get("/api/v1/transactions");
   }
 
+  // 创建账单接口
   Future<Map<String, dynamic>> create({
-    required String token,
     required String type,
     required int amount,
     required String category,
     required String note,
-  }) async {
-    final uri = Uri.parse("$baseUrl/api/v1/transactions");
-
-    final response = await http.post(
-      uri,
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode({
+  }) {
+    return apiClient.post(
+      "/api/v1/transactions",
+      body: {
         "type": type,
         "amount": amount,
         "category": category,
         "note": note,
-      }),
+      },
     );
-    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  // 更新账单接口
+  Future<Map<String, dynamic>> update({
+    required int id,
+    required String type,
+    required String category,
+    required String note,
+    required int amount,
+  }) async {
+    return apiClient.put(
+      "/api/v1/transactions/$id",
+      body: {
+        "type": type,
+        "amount": amount,
+        "category": category,
+        "note": note,
+      },
+    );
+  }
+
+  // 删除账单
+  Future<Map<String, dynamic>> delete({required int id}) async {
+    return apiClient.delete("/api/v1/transactions/$id");
   }
 }

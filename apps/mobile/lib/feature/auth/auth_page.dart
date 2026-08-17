@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/api_client.dart';
 import 'package:mobile/core/token_storage.dart';
-
 import "auth_api.dart";
 
 class AuthPage extends StatefulWidget {
   // 加成功的回调
-  const AuthPage({super.key, required this.onLoginSuccess});
+  const AuthPage({
+    super.key,
+    required this.onLoginSuccess,
+    required this.authApi,
+    required this.tokenStorage,
+  });
 
-  final VoidCallback onLoginSuccess;
+  final Future<void> Function() onLoginSuccess;
+  final AuthApi authApi;
+  final TokenStorage tokenStorage;
 
   @override
   State<AuthPage> createState() => _AuthPageState();
@@ -18,9 +25,7 @@ class _AuthPageState extends State<AuthPage> {
   final emailController = TextEditingController();
   // 密码controller
   final passwordController = TextEditingController();
-  final authApi = AuthApi(baseUrl: "http://localhost:8080");
   // 存token
-  final tokenStorage = TokenStorage();
   bool loading = false;
   String message = '';
 
@@ -39,11 +44,10 @@ class _AuthPageState extends State<AuthPage> {
         loading = true;
         message = '';
       });
-      final result = await authApi.register(
+      final result = await widget.authApi.register(
         email: emailController.text,
         password: passwordController.text,
       );
-      print("$result 当前注册");
 
       setState(() {
         loading = false;
@@ -55,9 +59,12 @@ class _AuthPageState extends State<AuthPage> {
         message = "注册失败";
       });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      // 避免页面销毁后继续执行setState
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
   }
 
@@ -67,38 +74,40 @@ class _AuthPageState extends State<AuthPage> {
         loading = true;
         message = '';
       });
-      final result = await authApi.login(
+      final result = await widget.authApi.login(
         email: emailController.text,
         password: passwordController.text,
       );
       // 登录成功保存token到本地存储 下次app启动时直接读取
       final token = result["data"]?["token"] as String?;
       // 登陆成功
-      if (token != null) {
-        await tokenStorage.saveToken(token);
-        widget.onLoginSuccess();
+      if (token == null) {
+        throw const ApiException("服务器登录异常");
       }
-      print("$result 当前login");
+      await widget.tokenStorage.saveToken(token);
+      await widget.onLoginSuccess();
+      if (!mounted) return;
       setState(() {
         loading = false;
-        message = result["message"]?.toString() ?? "登录失败";
       });
     } catch (e) {
-      print("登录失败 $e");
-      await tokenStorage.clearToken();
+      await widget.tokenStorage.clearToken();
 
       setState(() {
         loading = false;
         message = "登录失败 $e";
       });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
   }
 
   // 视图层
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("记账软件")),

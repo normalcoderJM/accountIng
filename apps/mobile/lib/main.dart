@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/app_gate.dart';
-import 'package:mobile/feature/auth/auth_page.dart';
+import 'package:mobile/core/api_client.dart';
+import "package:mobile/core/token_storage.dart";
 
 void main() {
-  runApp(MainPage());
+  final tokenStorage = TokenStorage();
+  final apiClient = ApiClient(
+    baseUrl: "http://localhost:8080",
+    tokenStorage: tokenStorage,
+  );
+  runApp(MainPage(tokenStorage: tokenStorage, apiClient: apiClient));
 }
 
 class MainPage extends StatelessWidget {
-  const MainPage({super.key});
+  const MainPage({
+    super.key,
+    required this.tokenStorage,
+    required this.apiClient,
+  });
+  final TokenStorage tokenStorage;
+  final ApiClient apiClient;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +28,7 @@ class MainPage extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
-      home: AppGate(),
+      home: AppGate(tokenStorage: tokenStorage, apiClient: apiClient),
     );
   }
 }

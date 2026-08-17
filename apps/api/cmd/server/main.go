@@ -12,6 +12,10 @@ import (
 
 func main() {
 	database, err := db.Open()
+	if err != nil {
+		panic(err)
+	}
+	defer database.Close()
 	// 鉴权
 	authStore := auth.NewStore(database)
 	authHandle := auth.NewHandle(authStore)
@@ -31,11 +35,6 @@ func main() {
 	fmt.Println("server running on :8080")
 
 	r.Run(":8080")
-
-	if err != nil {
-		panic(err)
-	}
-	defer database.Close()
 
 	_ = database
 }

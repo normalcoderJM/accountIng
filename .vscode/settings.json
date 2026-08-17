@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "/Users/admin/Documents/accountIng/apps/mobile/linux"
+    "cmake.sourceDirectory": "/Users/admin/Documents/accountIng/apps/mobile/linux",
+    "makefile.configureOnOpen": false
 }

@@ -21,7 +21,14 @@ type Transaction struct {
 
 type CreateTransactionRequest struct {
 	Type     TransactionType `json:"type" binding:"required,oneof=income expense"`
-	Amount   int64           `json:"amount" binding:"required"`
-	Category string          `json:"category" binding:"required"`
-	Note     string          `json:"note"`
+	Amount   int64           `json:"amount" binding:"required,gt=0"`
+	Category string          `json:"category" binding:"required,max=20"`
+	Note     string          `json:"note" binding:"max=200"`
+}
+
+type UpdateTransactionRequest struct {
+	Type     TransactionType `json:"type" binding:"required,oneof=income expense"`
+	Amount   int64           `json:"amount" binding:"required,gt=0"`
+	Category string          `json:"category" binding:"required,max=20"`
+	Note     string          `json:"note" binding:"max=200"`
 }
