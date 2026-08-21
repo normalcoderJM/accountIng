@@ -1,22 +1,33 @@
 package transactions
 
 import (
+	"context"
 	"database/sql"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/normalcoderJM/accountIng/apps/api/internal/errorcode"
 	"github.com/normalcoderJM/accountIng/apps/api/internal/response"
 )
 
-type Handle struct {
-	store *Store
+type TransactionService interface {
+	Create(ctx context.Context, userId int64, req CreateTransactionRequest) (Transaction, error)
+	List(ctx context.Context, userId int64) ([]Transaction, error)
+	Update(ctx context.Context, userId int64, id int64, req UpdateTransactionRequest) (Transaction, error)
+	Delete(ctx context.Context, userId int64, id int64) error
 }
 
-func NewHandle(store *Store) *Handle {
-	return &Handle{store: store}
+// Handle 只负责 HTTP 请求和响应。
+type Handle struct {
+	service TransactionService
+}
+
+// NewHandle 创建账单 HTTP Handler。
+func NewHandle(service TransactionService) *Handle {
+	return &Handle{service: service}
 }
 
 func (h *Handle) RegisterRouter(r gin.IRouter) {
@@ -29,18 +40,18 @@ func (h *Handle) RegisterRouter(r gin.IRouter) {
 func (h *Handle) Create(c *gin.Context) {
 	userId, ok := getUserId(c)
 	if !ok {
-		response.Error(c, http.StatusInternalServerError, 40107, "invalid user context")
+		response.Error(c, http.StatusInternalServerError, errorcode.InvalidUserContext, "用户上下文错误")
 		return
 	}
 	var req CreateTransactionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, 40001, "invalid transaction data")
+		response.Error(c, http.StatusBadRequest, errorcode.InvalidTransactionCreateData, "账单信息格式不正确")
 		return
 	}
-	transaction, err := h.store.Create(c.Request.Context(), userId, req)
+	transaction, err := h.service.Create(c.Request.Context(), userId, req)
 	if err != nil {
-		fmt.Println("create transactions error", err)
-		response.Error(c, http.StatusInternalServerError, 50001, "create transactions error")
+		log.Printf("create transactions error:%v", err)
+		response.Error(c, http.StatusInternalServerError, errorcode.CreateTransactionFailed, "create transactions error")
 		return
 	}
 
@@ -51,13 +62,13 @@ func (h *Handle) List(c *gin.Context) {
 
 	userId, ok := getUserId(c)
 	if !ok {
-		response.Error(c, http.StatusInternalServerError, 40107, "invalid user context")
+		response.Error(c, http.StatusInternalServerError, errorcode.InvalidUserContext, "用户上下文错误")
 		return
 	}
-	transactions, err := h.store.ListByUserId(c.Request.Context(), userId)
+	transactions, err := h.service.List(c.Request.Context(), userId)
 	if err != nil {
-		fmt.Println("查询用户失败", err)
-		response.Error(c, http.StatusInternalServerError, 50001, "查询用户失败")
+		log.Printf("查询用户失败:%v", err)
+		response.Error(c, http.StatusInternalServerError, errorcode.ListTransactionsFailed, "获取账单列表失败，请稍后重试")
 		return
 	}
 
@@ -68,7 +79,7 @@ func (h *Handle) List(c *gin.Context) {
 func (h *Handle) Update(c *gin.Context) {
 	userId, ok := getUserId(c)
 	if !ok {
-		response.Error(c, http.StatusInternalServerError, 50000, "invalid user context")
+		response.Error(c, http.StatusInternalServerError, errorcode.InvalidUserContext, "用户上下文错误")
 		return
 	}
 	id, valid := parseTransactionID(c)
@@ -78,20 +89,20 @@ func (h *Handle) Update(c *gin.Context) {
 	// 转换json失败
 	var req UpdateTransactionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, 40003, "invalid transaction data")
+		response.Error(c, http.StatusBadRequest, errorcode.InvalidTransactionUpdateData, "账单格式不正确")
 		return
 	}
-	transaction, err := h.store.Update(c.Request.Context(), userId, id, req)
+	transaction, err := h.service.Update(c.Request.Context(), userId, id, req)
 
 	if err != nil {
 		// errors检查数据库错误
 		if errors.Is(err, sql.ErrNoRows) {
-			response.Error(c, http.StatusBadRequest, 40401, "transaction not found")
+			response.Error(c, http.StatusNotFound, errorcode.TransactionNotFound, "账单不存在")
 			return
 		}
 
-		fmt.Println("update transaction error", err)
-		response.Error(c, http.StatusInternalServerError, 50002, "failed to update transaction")
+		log.Printf("update transaction error:%v", err)
+		response.Error(c, http.StatusInternalServerError, errorcode.UpdateTransactionFailed, "failed to update transaction")
 		return
 	}
 	response.Success(c, transaction)
@@ -100,7 +111,7 @@ func (h *Handle) Update(c *gin.Context) {
 func (h *Handle) Delete(c *gin.Context) {
 	userId, ok := getUserId(c)
 	if !ok {
-		response.Error(c, http.StatusInternalServerError, 40107, "invalid user context")
+		response.Error(c, http.StatusInternalServerError, errorcode.InvalidUserContext, "用户上下文错误")
 		return
 	}
 	id, valid := parseTransactionID(c)
@@ -108,14 +119,14 @@ func (h *Handle) Delete(c *gin.Context) {
 		return
 	}
 
-	err := h.store.Delete(c.Request.Context(), id, userId)
+	err := h.service.Delete(c.Request.Context(), userId, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			response.Error(c, http.StatusBadRequest, 40401, "transaction not fount")
+		if errors.Is(err, sql.ErrNoRows) {
+			response.Error(c, http.StatusBadRequest, errorcode.TransactionNotFound, "账单不存在")
 			return
 		}
-		fmt.Println("deleted transaction error", err)
-		response.Error(c, http.StatusInternalServerError, 50003, "failed to delete transaction")
+		log.Printf("deleted transaction error:%v", err)
+		response.Error(c, http.StatusInternalServerError, errorcode.DeleteTransactionFailed, "删除账单失败，请稍后重试")
 		return
 	}
 	response.Success(
@@ -129,7 +140,7 @@ func (h *Handle) Delete(c *gin.Context) {
 func parseTransactionID(c *gin.Context) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		response.Error(c, http.StatusBadRequest, 40002, "invalid transaction id")
+		response.Error(c, http.StatusBadRequest, errorcode.InvalidTransactionID, "账单ID不正确")
 		return 0, false
 	}
 	return id, true
@@ -142,5 +153,8 @@ func getUserId(c *gin.Context) (int64, bool) {
 		return 0, false
 	}
 	userId, ok := values.(int64)
+	if !ok || userId <= 0 {
+		return 0, false
+	}
 	return userId, ok
 }

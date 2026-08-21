@@ -50,7 +50,7 @@ class _HomePageState extends State<HomePage> {
 
       final data = result["data"] as List<dynamic>? ?? [];
       final items = data
-          .map((item) => Transaction.formJson(item as Map<String, dynamic>))
+          .map((item) => Transaction.fromJson(item as Map<String, dynamic>))
           .toList();
       if (!mounted) return;
       setState(() {

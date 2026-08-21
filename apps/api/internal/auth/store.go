@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Store struct {
@@ -23,8 +25,8 @@ func (s *Store) CreateUser(ctx context.Context, email string, password string) (
 	var user User
 	err := s.db.QueryRowContext(ctx, query, email, password).Scan(
 		&user.Id,
-		&user.Password,
 		&user.Email,
+		&user.Password,
 		&user.CreateAt,
 	)
 	if err != nil {
@@ -67,7 +69,13 @@ func (s *Store) GetUserById(ctx context.Context, id int64) (User, error) {
 	return user, nil
 }
 
-// 判断邮箱是否唯一
+// IsDuplicateEmail 判断数据库错误是否为邮箱唯一键冲突。
 func IsDuplicateEmail(err error) bool {
-	return errors.Is(err, sql.ErrNoRows)
+	var postgresError *pgconn.PgError
+	// errors.As 会沿着错误包装链，
+	// 查找真实的 PostgreSQL 错误。
+	if !errors.As(err, &postgresError) {
+		return false
+	}
+	return postgresError.Code == "23505"
 }

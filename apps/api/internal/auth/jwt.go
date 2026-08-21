@@ -6,10 +6,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte("dev-secret-accounting")
-
 // 生成token
-func GenerateToken(user User) (string, error) {
+func GenerateToken(user User, secret string) (string, error) {
 	claims := jwt.MapClaims{
 		"userId": user.Id,
 		"email":  user.Email,
@@ -17,6 +15,6 @@ func GenerateToken(user User) (string, error) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	return token.SignedString(jwtSecret)
+	return token.SignedString([]byte(secret))
 
 }

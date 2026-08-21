@@ -8,16 +8,17 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func Open() (*sql.DB, error) {
+func Open(databaseURL string) (*sql.DB, error) {
 	// 连接对应docker的配置
-	dsn := "postgres://accounting:accounting@localhost:5432/accounting_dev?sslmode=disable"
+	database, err := sql.Open("pgx", databaseURL)
 
-	database, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("Open database： %w", err)
 	}
 
 	if err := database.Ping(); err != nil {
+		// 初始化失败后释放资源
+		database.Close()
 		return nil, fmt.Errorf("ping database:%w", err)
 	}
 

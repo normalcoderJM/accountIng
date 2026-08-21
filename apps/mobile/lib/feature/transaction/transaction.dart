@@ -18,7 +18,7 @@ class Transaction {
   final String note;
   final DateTime createdAt;
 
-  factory Transaction.formJson(Map<String, dynamic> json) {
+  factory Transaction.fromJson(Map<String, dynamic> json) {
     return Transaction(
       id: json["id"] as int,
       type: json["type"] as String,

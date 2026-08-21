@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "pngjs": "^7.0.0",
+    "potrace": "^2.1.8"
+  }
+}
