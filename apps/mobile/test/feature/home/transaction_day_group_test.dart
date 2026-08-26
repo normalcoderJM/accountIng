@@ -6,14 +6,15 @@ void main() {
   group('groupTransactionsByDay', () {
     test('应该按日期分组，并按日期从新到旧排列', () {
       // Arrange：准备测试数据
-      final transactions = [
+      final transactions = <Transaction>[
         Transaction(
           id: 1,
           type: 'expense',
           amount: 2000,
           category: '餐饮',
           note: '昨天午餐',
-          createdAt: DateTime(2026, 8, 17, 12),
+          occurredAt: DateTime(2026, 8, 17, 12),
+          createdAt: DateTime(2026, 8, 20, 10),
         ),
         Transaction(
           id: 2,
@@ -21,7 +22,8 @@ void main() {
           amount: 10000,
           category: '工资',
           note: '今天收入',
-          createdAt: DateTime(2026, 8, 18, 9),
+          occurredAt: DateTime(2026, 8, 18, 9),
+          createdAt: DateTime(2026, 8, 20, 10),
         ),
         Transaction(
           id: 3,
@@ -29,7 +31,8 @@ void main() {
           amount: 3500,
           category: '购物',
           note: '今天购物',
-          createdAt: DateTime(2026, 8, 18, 15),
+          occurredAt: DateTime(2026, 8, 18, 15),
+          createdAt: DateTime(2026, 8, 20, 10),
         ),
       ];
 

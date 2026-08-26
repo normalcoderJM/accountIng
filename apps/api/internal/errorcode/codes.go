@@ -40,17 +40,20 @@ const (
 
 // Transaction 模块：40011 - 40419。
 const (
-	InvalidTransactionCreateData Code = 40011
-	InvalidTransactionID         Code = 40012
-	InvalidTransactionUpdateData Code = 40013
+	InvalidTransactionCreateData   Code = 40011
+	InvalidTransactionID           Code = 40012
+	InvalidTransactionUpdateData   Code = 40013
+	InvalidTransactionListQuery    Code = 40014
+	InvalidTransactionSummaryQuery Code = 40015
 
 	TransactionNotFound Code = 40411
 )
 
 // Transaction 服务端错误：50011 - 50019。
 const (
-	CreateTransactionFailed Code = 50011
-	ListTransactionsFailed  Code = 50012
-	UpdateTransactionFailed Code = 50013
-	DeleteTransactionFailed Code = 50014
+	CreateTransactionFailed   Code = 50011
+	ListTransactionsFailed    Code = 50012
+	UpdateTransactionFailed   Code = 50013
+	DeleteTransactionFailed   Code = 50014
+	SummaryTransactionsFailed Code = 50015
 )

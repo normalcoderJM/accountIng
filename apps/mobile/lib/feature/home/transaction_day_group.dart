@@ -38,7 +38,7 @@ List<TransactionDayGroup> groupTransactionsByDay(
 ) {
   final groups = <DateTime, List<Transaction>>{};
   for (final transaction in transactions) {
-    final date = dateOnly(transaction.createdAt);
+    final date = dateOnly(transaction.occurredAt);
     groups.putIfAbsent(date, () => []).add(transaction);
   }
   final entries = groups.entries.toList()

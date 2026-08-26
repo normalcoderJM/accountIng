@@ -14,8 +14,7 @@ class ApiException implements Exception {
 }
 
 class UnauthorizedException extends ApiException {
-  const UnauthorizedException([String message = "登录状态已失效,请重新登录"])
-    : super(message);
+  const UnauthorizedException([super.message = "登录状态已失效,请重新登录"]);
 }
 
 class ApiClient {

@@ -15,9 +15,10 @@ import (
 
 type TransactionService interface {
 	Create(ctx context.Context, userId int64, req CreateTransactionRequest) (Transaction, error)
-	List(ctx context.Context, userId int64) ([]Transaction, error)
+	ListPage(ctx context.Context, userId int64, req ListTransactionsQuery) (TransactionPage, error)
 	Update(ctx context.Context, userId int64, id int64, req UpdateTransactionRequest) (Transaction, error)
 	Delete(ctx context.Context, userId int64, id int64) error
+	Summary(ctx context.Context, userId int64, query SummaryTransactionsQuery) (TransactionSummary, error)
 }
 
 // Handle 只负责 HTTP 请求和响应。
@@ -32,6 +33,7 @@ func NewHandle(service TransactionService) *Handle {
 
 func (h *Handle) RegisterRouter(r gin.IRouter) {
 	r.GET("/transactions", h.List)
+	r.GET("/transactions/summary", h.Summary)
 	r.POST("/transactions", h.Create)
 	r.PUT("/transactions/:id", h.Update)
 	r.DELETE("/transactions/:id", h.Delete)
@@ -65,15 +67,51 @@ func (h *Handle) List(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, errorcode.InvalidUserContext, "用户上下文错误")
 		return
 	}
-	transactions, err := h.service.List(c.Request.Context(), userId)
+	var query ListTransactionsQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Error(c, http.StatusBadRequest, errorcode.InvalidTransactionListQuery, "分页参数不正确")
+		return
+	}
+	page, err := h.service.ListPage(c.Request.Context(), userId, query)
 	if err != nil {
-		log.Printf("查询用户失败:%v", err)
+		if errors.Is(err, ErrInvalidTransactionCursor) || errors.Is(err, ErrInvalidTransactionPeriod) {
+			response.Error(c, http.StatusBadRequest, errorcode.InvalidTransactionListQuery, "分页参数不正确")
+			return
+		}
 		response.Error(c, http.StatusInternalServerError, errorcode.ListTransactionsFailed, "获取账单列表失败，请稍后重试")
 		return
 	}
 
-	response.Success(c, transactions)
+	response.Success(c, page)
 
+}
+
+func (h *Handle) Summary(c *gin.Context) {
+	userId, ok := getUserId(c)
+	if !ok {
+		response.Error(c, http.StatusInternalServerError, errorcode.InvalidUserContext, "用户上下文错误")
+		return
+	}
+	var query SummaryTransactionsQuery
+
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Error(c, http.StatusBadRequest, errorcode.InvalidTransactionSummaryQuery, "汇总时间范围不正确")
+		return
+	}
+
+	summary, err := h.service.Summary(
+		c.Request.Context(), userId, query,
+	)
+	if err != nil {
+		if errors.Is(err, ErrInvalidTransactionPeriod) {
+			response.Error(c, http.StatusBadRequest, errorcode.InvalidTransactionSummaryQuery, "汇总时间范围不正确")
+			return
+		}
+		log.Printf("summary transactions failed:%v", err)
+		response.Error(c, http.StatusInternalServerError, errorcode.SummaryTransactionsFailed, "获取账单汇总失败，请稍后再试")
+		return
+	}
+	response.Success(c, summary)
 }
 
 func (h *Handle) Update(c *gin.Context) {
@@ -122,7 +160,7 @@ func (h *Handle) Delete(c *gin.Context) {
 	err := h.service.Delete(c.Request.Context(), userId, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			response.Error(c, http.StatusBadRequest, errorcode.TransactionNotFound, "账单不存在")
+			response.Error(c, http.StatusNotFound, errorcode.TransactionNotFound, "账单不存在")
 			return
 		}
 		log.Printf("deleted transaction error:%v", err)

@@ -44,8 +44,8 @@ class TransactionTile extends StatelessWidget {
     final amountColor = isExpense ? colors.error : colors.primary;
     final iconBackground = amountColor.withValues(alpha: 0.12);
     final subtitle = transaction.note.isEmpty
-        ? formatTransactionTime(transaction.createdAt)
-        : "${formatTransactionTime(transaction.createdAt)} · ${transaction.note}";
+        ? formatTransactionTime(transaction.occurredAt)
+        : "${formatTransactionTime(transaction.occurredAt)} · ${transaction.note}";
     return InkWell(
       onTap: onTap,
       child: Padding(

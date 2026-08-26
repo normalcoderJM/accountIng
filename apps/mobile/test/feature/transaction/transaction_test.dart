@@ -11,6 +11,7 @@ void main() {
         'amount': 2500,
         'category': '餐饮',
         'note': '午餐',
+        'occurredAt': '2026-08-17T18:20:00Z',
         'createdAt': '2026-08-18T12:30:00Z',
       };
 
@@ -23,6 +24,7 @@ void main() {
       expect(transaction.amount, 2500);
       expect(transaction.category, '餐饮');
       expect(transaction.note, '午餐');
+      expect(transaction.occurredAt, DateTime.utc(2026, 8, 17, 18, 20));
       expect(transaction.createdAt, DateTime.utc(2026, 8, 18, 12, 30));
     });
   });

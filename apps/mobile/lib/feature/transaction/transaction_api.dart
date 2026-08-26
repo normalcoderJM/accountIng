@@ -1,4 +1,6 @@
 import "package:mobile/core/api_client.dart";
+import "package:mobile/feature/transaction/transaction_summary.dart";
+import "package:mobile/feature/transaction/transaction_page.dart";
 
 class TransactionApi {
   TransactionApi({required this.apiClient});
@@ -6,9 +8,69 @@ class TransactionApi {
   final ApiClient apiClient;
   // 连接超时时间
   static const requestTimeout = Duration(seconds: 10);
-  // 账单列表接口
-  Future<Map<String, dynamic>> list() {
-    return apiClient.get("/api/v1/transactions");
+
+  // 获取一页账单 cursor为null表示加载第一页 limit 表示每页最多返回条数
+  Future<TransactionPage> listPage({
+    String? cursor,
+    required DateTime startAt,
+    required DateTime endAt,
+    int limit = 20,
+  }) async {
+    final queryParameters = <String, String>{
+      "limit": limit.toString(),
+      "startAt": startAt.toUtc().toIso8601String(),
+      "endAt": endAt.toUtc().toIso8601String(),
+    };
+
+    // 第一页不需要传cursor
+    if (cursor != null) {
+      queryParameters["cursor"] = cursor.toString();
+    }
+    final path = Uri(
+      path: "/api/v1/transactions",
+      queryParameters: queryParameters,
+    ).toString();
+    final result = await apiClient.get(path);
+    final data = result["data"];
+
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException("账单数据格式不正确");
+    }
+
+    try {
+      return TransactionPage.fromJson(data);
+    } on FormatException {
+      throw const ApiException("账单数据格式不正确");
+    }
+  }
+
+  // 获取当前用户汇总账单
+  Future<TransactionSummary> getSummary({
+    required DateTime startAt,
+    required DateTime endAt,
+  }) async {
+    final queryParameters = <String, String>{
+      "startAt": startAt.toUtc().toIso8601String(),
+      "endAt": endAt.toUtc().toIso8601String(),
+    };
+
+    final path = Uri(
+      path: "/api/v1/transactions/summary",
+      queryParameters: queryParameters,
+    ).toString();
+    final result = await apiClient.get(path);
+
+    final data = result["data"];
+
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException("服务器账单格式不正确");
+    }
+
+    try {
+      return TransactionSummary.fromJson(data);
+    } on FormatException {
+      throw const ApiException("服务器账单格式不正确");
+    }
   }
 
   // 创建账单接口
@@ -17,6 +79,7 @@ class TransactionApi {
     required int amount,
     required String category,
     required String note,
+    required DateTime occurredAt,
   }) {
     return apiClient.post(
       "/api/v1/transactions",
@@ -25,6 +88,7 @@ class TransactionApi {
         "amount": amount,
         "category": category,
         "note": note,
+        "occurredAt": occurredAt.toUtc().toIso8601String(),
       },
     );
   }
@@ -36,6 +100,7 @@ class TransactionApi {
     required String category,
     required String note,
     required int amount,
+    required DateTime occurredAt,
   }) async {
     return apiClient.put(
       "/api/v1/transactions/$id",
@@ -44,6 +109,7 @@ class TransactionApi {
         "amount": amount,
         "category": category,
         "note": note,
+        "occurredAt": occurredAt.toUtc().toIso8601String(),
       },
     );
   }

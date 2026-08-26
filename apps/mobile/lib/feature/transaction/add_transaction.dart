@@ -33,6 +33,8 @@ class _AddTransactionState extends State<AddTransaction> {
 
   String type = "income";
   bool loading = false;
+  // 账单账期
+  late DateTime occurredAt;
   static const expenseCategory = ["餐饮", "交通", "住房", "购物", "医疗", "娱乐", "其他"];
   static const incomeCategory = ["工资", "兼职", "奖金", "红包", "其他"];
   List<String> get categories {
@@ -44,6 +46,7 @@ class _AddTransactionState extends State<AddTransaction> {
     super.initState();
 
     final transaction = widget.transaction;
+    occurredAt = transaction?.occurredAt.toLocal() ?? DateTime.now();
     // 初始化选中第一个
     if (transaction == null) {
       type = "income";
@@ -162,6 +165,34 @@ class _AddTransactionState extends State<AddTransaction> {
     );
   }
 
+  // 选择账期方法
+  Future<void> selectOccurredDate() async {
+    if (loading) return;
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: occurredAt,
+      firstDate: DateTime(2000, 1, 1),
+      lastDate: DateTime.now(),
+      helpText: "请选择账单日期",
+      cancelText: "取消",
+      confirmText: "确定",
+    );
+
+    if (selectedDate == null || !mounted) {
+      return;
+    }
+    setState(() {
+      occurredAt = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        selectedDate.hour,
+        selectedDate.minute,
+        selectedDate.second,
+      );
+    });
+  }
+
   @override
   void dispose() {
     amountController.dispose();
@@ -252,6 +283,7 @@ class _AddTransactionState extends State<AddTransaction> {
           amount: amount,
           category: categoryText,
           note: noteText,
+          occurredAt: occurredAt,
         );
       } else {
         await widget.transactionApi.create(
@@ -259,6 +291,7 @@ class _AddTransactionState extends State<AddTransaction> {
           amount: amount,
           category: categoryText,
           note: noteText,
+          occurredAt: occurredAt,
         );
       }
 
@@ -440,6 +473,42 @@ class _AddTransactionState extends State<AddTransaction> {
               buildCategorySelector(),
               const SizedBox(height: 24),
               Text(
+                "账单日期",
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              Material(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  onTap: loading ? null : selectOccurredDate,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsetsGeometry.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            "${occurredAt.year}年"
+                            "${occurredAt.month}月"
+                            "${occurredAt.day}日",
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
                 "备注",
                 style: Theme.of(
                   context,
@@ -466,6 +535,7 @@ class _AddTransactionState extends State<AddTransaction> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
+                  key: const Key("save_transaction_button"),
                   onPressed: loading ? null : submit,
                   style: FilledButton.styleFrom(
                     minimumSize: Size.fromHeight(52),

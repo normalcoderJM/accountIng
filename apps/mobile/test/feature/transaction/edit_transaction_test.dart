@@ -38,6 +38,7 @@ void main() {
         amount: 2550,
         category: '餐饮',
         note: '午餐',
+        occurredAt: DateTime(2026, 7, 18, 12, 30),
         createdAt: DateTime(2026, 8, 18, 12, 30),
       );
 
@@ -150,6 +151,7 @@ void main() {
         amount: 2550,
         category: '餐饮',
         note: '午餐',
+        occurredAt: DateTime(2026, 7, 18, 12, 30),
         createdAt: DateTime(2026, 8, 18, 12, 30),
       );
 
@@ -244,6 +246,7 @@ void main() {
         amount: 2550,
         category: '餐饮',
         note: '午餐',
+        occurredAt: DateTime(2026, 7, 18, 12, 30),
         createdAt: DateTime(2026, 8, 18, 12, 30),
       );
 

@@ -224,9 +224,15 @@ void main() {
 
       await tester.enterText(amountField, '25.50');
 
-      final saveButton = find.widgetWithText(FilledButton, '保存');
+      final saveButton = find.byKey(const Key("save_transaction_button"));
 
-      await tester.ensureVisible(saveButton);
+      // ListView 会延迟构建屏幕外组件，因此需要一边滚动一边查找
+      await tester.scrollUntilVisible(
+        saveButton,
+        300,
+        scrollable: find.byType(ListView),
+      );
+
       await tester.pumpAndSettle();
 
       // Act：点击保存
@@ -293,9 +299,15 @@ void main() {
       // 输入合法金额
       await tester.enterText(find.byType(TextFormField), '20.00');
 
-      final saveButton = find.widgetWithText(FilledButton, '保存');
+      final saveButton = find.byKey(const Key("save_transaction_button"));
 
-      await tester.ensureVisible(saveButton);
+      // ListView 会延迟构建屏幕外组件，因此需要一边滚动一边查找
+      await tester.scrollUntilVisible(
+        saveButton,
+        300,
+        scrollable: find.byType(ListView),
+      );
+
       await tester.pumpAndSettle();
 
       // 先记录按钮所在位置
