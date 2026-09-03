@@ -15,6 +15,7 @@ import (
 	"github.com/normalcoderJM/accountIng/apps/api/internal/config"
 	"github.com/normalcoderJM/accountIng/apps/api/internal/db"
 	"github.com/normalcoderJM/accountIng/apps/api/internal/health"
+	"github.com/normalcoderJM/accountIng/apps/api/internal/households"
 	"github.com/normalcoderJM/accountIng/apps/api/internal/transactions"
 )
 
@@ -37,14 +38,15 @@ func main() {
 	authService := auth.NewService(authStore, cfg.JWTSecret, 3*time.Second)
 	authHandle := auth.NewHandle(authService, cfg.JWTSecret)
 	// --------登录注册业务-------
-	// -------账单业务-------
+	//  ------家庭账本模块-------
+	householdStore := households.NewStore(database)
+	householdService := households.NewService(householdStore)
+	householdHandle := households.NewHandle(householdService)
 	// 账单数据层 只负责sql
 	transactionStore := transactions.NewStore(database)
-	// 账单业务层 负责业务流程和数据库超时流程
-	transactionService := transactions.NewService(transactionStore, 3*time.Second)
-	// 账单http层 负责请求和响应
+	transactionService := transactions.NewService(transactionStore, householdService, 3*time.Second)
 	transactionHandle := transactions.NewHandle(transactionService)
-	//  ------账单业务-------
+
 	// 4.创建gin路由
 	r := gin.Default()
 	// 健康接口检查 不需要登录
@@ -57,8 +59,10 @@ func main() {
 	protected := api.Group("")
 	protected.Use(auth.AuthMiddleware(cfg.JWTSecret))
 	// 注册账单接口
+	householdHandle.RegisterRouter(protected)
 	transactionHandle.RegisterRouter(protected)
 
+	//  ------账单模块-------
 	// 5.创建标准的http server
 	server := &http.Server{
 		// 监听地址，例如 :8080

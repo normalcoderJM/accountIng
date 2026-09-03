@@ -49,6 +49,18 @@ const (
 	TransactionNotFound Code = 40411
 )
 
+// Household 模块：40021 - 40429。
+const (
+	InvalidHouseholdCreateData Code = 40021
+	InvalidHouseholdID         Code = 40022
+
+	// viewer 尝试新增、修改或删除家庭账单。
+	HouseholdReadOnly Code = 40321
+
+	// 家庭不存在，或者当前用户不是该家庭成员。
+	HouseholdNotAccessible Code = 40421
+)
+
 // Transaction 服务端错误：50011 - 50019。
 const (
 	CreateTransactionFailed   Code = 50011
@@ -56,4 +68,10 @@ const (
 	UpdateTransactionFailed   Code = 50013
 	DeleteTransactionFailed   Code = 50014
 	SummaryTransactionsFailed Code = 50015
+)
+
+// Household 服务端错误：50021 - 50029。
+const (
+	CreateHouseholdFailed Code = 50021
+	ListHouseholdsFailed  Code = 50022
 )

@@ -59,6 +59,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # App 内部图片资源。
+  # 按业务模块注册整个目录，后续增加家庭模块图片时无需反复修改 pubspec。
+  assets:
+    - assets/images/household/
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

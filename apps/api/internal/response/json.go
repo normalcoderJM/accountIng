@@ -34,3 +34,12 @@ func Error(c *gin.Context, status int, code errorcode.Code, message string) {
 		Message: message,
 	})
 }
+
+// created 返回http 201 创建家庭 创建账号这类接口 使用201 比统一返回200 更符合RESTAPI语义
+func Created(c *gin.Context, data any) {
+	JSON(c, http.StatusCreated, Body{
+		Code:    errorcode.Success,
+		Message: "success",
+		Data:    data,
+	})
+}

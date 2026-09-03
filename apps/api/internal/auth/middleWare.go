@@ -54,7 +54,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 		userId := int64(userIDFloat)
 
-		c.Set("userId", userId)
+		c.Set(userIDContextKey, userId) // 将userId放入gin context中 方便后续处理函数使用
 		c.Next()
 
 	}

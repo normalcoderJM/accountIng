@@ -2,12 +2,33 @@ import "package:mobile/core/api_client.dart";
 import "package:mobile/feature/transaction/transaction_summary.dart";
 import "package:mobile/feature/transaction/transaction_page.dart";
 
+// 返回当前选中家庭id的函数类型
+// transactionApi 不直接依赖页面 也不直接依赖householdSessin 只需要知道怎样获得当前家庭id
+typedef HouseholdIdProvider = int? Function();
+
 class TransactionApi {
-  TransactionApi({required this.apiClient});
+  TransactionApi({required this.apiClient, required this.householdIdProvider});
 
   final ApiClient apiClient;
+  final HouseholdIdProvider householdIdProvider;
+
+  int _requredHouseholdId() {
+    final householdId = householdIdProvider();
+
+    if (householdId == null || householdId <= 0) {
+      throw const ApiException("请先选择一个家庭");
+    }
+    return householdId;
+  }
+
+  String _transactionsPath() {
+    final householdId = _requredHouseholdId();
+
+    return "/api/v1/households/$householdId/transactions";
+  }
+
   // 连接超时时间
-  static const requestTimeout = Duration(seconds: 10);
+  // static const requestTimeout = Duration(seconds: 10);
 
   // 获取一页账单 cursor为null表示加载第一页 limit 表示每页最多返回条数
   Future<TransactionPage> listPage({
@@ -27,7 +48,7 @@ class TransactionApi {
       queryParameters["cursor"] = cursor.toString();
     }
     final path = Uri(
-      path: "/api/v1/transactions",
+      path: _transactionsPath(),
       queryParameters: queryParameters,
     ).toString();
     final result = await apiClient.get(path);
@@ -55,7 +76,7 @@ class TransactionApi {
     };
 
     final path = Uri(
-      path: "/api/v1/transactions/summary",
+      path: "${_transactionsPath()}/summary",
       queryParameters: queryParameters,
     ).toString();
     final result = await apiClient.get(path);
@@ -82,7 +103,7 @@ class TransactionApi {
     required DateTime occurredAt,
   }) {
     return apiClient.post(
-      "/api/v1/transactions",
+      _transactionsPath(),
       body: {
         "type": type,
         "amount": amount,
@@ -103,7 +124,7 @@ class TransactionApi {
     required DateTime occurredAt,
   }) async {
     return apiClient.put(
-      "/api/v1/transactions/$id",
+      "${_transactionsPath()}/$id",
       body: {
         "type": type,
         "amount": amount,
@@ -116,6 +137,6 @@ class TransactionApi {
 
   // 删除账单
   Future<Map<String, dynamic>> delete({required int id}) async {
-    return apiClient.delete("/api/v1/transactions/$id");
+    return apiClient.delete("${_transactionsPath()}/$id");
   }
 }

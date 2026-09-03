@@ -15,15 +15,26 @@ func NewStore(db *sql.DB) *Store {
 }
 
 // 创建账单
-func (s *Store) Create(ctx context.Context, userId int64, req CreateTransactionRequest) (Transaction, error) {
+func (s *Store) Create(ctx context.Context, userId int64, householdId int64, req CreateTransactionRequest) (Transaction, error) {
 	const query = `
-	INSERT INTO transactions(user_id,type,amount,category,note,occurred_at)
-	VALUES($1,$2,$3,$4,$5,$6)
-	RETURNING id,user_id,type,amount,category,note,occurred_at,created_at`
+	INSERT INTO transactions(
+	household_id,user_id,type,amount,category,note,occurred_at)
+	SELECT $1,$2,$3,$4,$5,$6,$7
+	WHERE EXISTS (
+	SELECT 1
+	FROM household_members
+	WHERE household_id = $1
+	AND user_id = $2
+	AND status = 'active'
+	AND role IN ('owner','admin','member')
+	)
+	RETURNING
+	id,household_id,user_id,type,amount,category,note,occurred_at,created_at`
 
 	var transaction Transaction
-	err := s.db.QueryRowContext(ctx, query, userId, req.Type, req.Amount, req.Category, req.Note, req.OccurredAt).Scan(
+	err := s.db.QueryRowContext(ctx, query, householdId, userId, req.Type, req.Amount, req.Category, req.Note, req.OccurredAt).Scan(
 		&transaction.Id,
+		&transaction.HouseholdId,
 		&transaction.UserId,
 		&transaction.Type,
 		&transaction.Amount,
@@ -39,24 +50,66 @@ func (s *Store) Create(ctx context.Context, userId int64, req CreateTransactionR
 }
 
 // 账单分页
-func (s *Store) ListPageByUserId(
+func (s *Store) ListPageByHouseholdId(
 	ctx context.Context,
 	userId int64,
+	householdId int64,
 	startAt time.Time,
 	endAt time.Time,
 	cursor *transactionCursor,
 	limit int) ([]Transaction, error) {
-	const firstPageQuery = `SELECT id,user_id,type,amount,category,note,occurred_at,created_at
-	FROM transactions
-	WHERE user_id = $1 AND occurred_at  >= $2 AND occurred_at < $3
-	ORDER BY occurred_at DESC, id DESC
-	LIMIT $4
+	// 第一页数据
+	const firstPageQuery = `
+	SELECT
+	t.id,
+	t.household_id,
+	t.user_id,
+	t.type,
+	t.amount,
+	t.category,
+	t.note,
+	t.occurred_at,
+	t.created_at
+	FROM transactions AS t
+	WHERE
+	t.household_id = $1
+	 AND t.occurred_at >= $3
+	 AND t.occurred_at < $4
+	 AND EXISTS(
+	 SELECT 1
+	 FROM household_members AS member
+	 WHERE member.household_id = t.household_id
+	 AND member.user_id = $2
+	 AND member.status = 'active'
+	 )
+	ORDER BY t.occurred_at DESC, t.id DESC
+	LIMIT $5
 	`
-	const nextPageQuery = `SELECT id,user_id,type,amount,category,note,occurred_at,created_at
-	FROM transactions
-	WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND (occurred_at,id) < ($4,$5)
-	ORDER BY occurred_at DESC, id DESC
-	LIMIT $6
+	// 下一页数据
+	const nextPageQuery = `SELECT
+	t.id,
+	t.household_id,
+	t.user_id,
+	t.type,
+	t.amount,
+	t.category,
+	t.note,
+	t.occurred_at,
+	t.created_at
+	FROM transactions AS t
+	WHERE t.household_id = $1
+	AND t.occurred_at >=$3
+	AND t.occurred_at < $4
+	AND (t.occurred_at,t.id) < ($5,$6)
+	AND EXISTS(
+	SELECT 1
+	FROM household_members AS member
+	WHERE member.household_id = t.household_id
+	AND member.user_id = $2
+	AND member.status ='active'
+	)
+	ORDER BY t.occurred_at DESC, t.id DESC
+	LIMIT $7
 	`
 	//多查询一条 用来判断后面是否还有数据
 	queryLimit := limit + 1
@@ -66,7 +119,7 @@ func (s *Store) ListPageByUserId(
 	)
 	if cursor == nil {
 		rows, err = s.db.QueryContext(
-			ctx, firstPageQuery, userId, startAt, endAt, queryLimit,
+			ctx, firstPageQuery, householdId, userId, startAt, endAt, queryLimit,
 		)
 		// // 第一次请求没有页码
 		// rows, err = s.db.QueryContext(
@@ -75,7 +128,7 @@ func (s *Store) ListPageByUserId(
 	} else {
 		// 下一页只查询ID 小于上一页最后一条的数据
 		rows, err = s.db.QueryContext(
-			ctx, nextPageQuery, userId, startAt, endAt, cursor.OccurredAt, cursor.Id, queryLimit,
+			ctx, nextPageQuery, householdId, userId, startAt, endAt, cursor.OccurredAt, cursor.Id, queryLimit,
 		)
 	}
 
@@ -89,6 +142,7 @@ func (s *Store) ListPageByUserId(
 		var transaction Transaction
 		err := rows.Scan(
 			&transaction.Id,
+			&transaction.HouseholdId,
 			&transaction.UserId,
 			&transaction.Type,
 			&transaction.Amount,
@@ -112,19 +166,32 @@ func (s *Store) ListPageByUserId(
 // SummaryByUserId 查询指定时间范围内的账单汇总。
 // 聚合必须由数据库完成，不能先把全部账单读取到 Go 内存中再计算。
 // 数据库只向 Go 返回“类型 + 分类”的汇总结果，数据量远小于原始账单。
-func (s *Store) SummaryByUserId(
+func (s *Store) SummaryByHouseholdId(
 	ctx context.Context,
 	userId int64,
+	householdId int64,
 	startAt time.Time,
 	endAt time.Time) (TransactionSummary, error) {
-	const query = `SELECT type,category, SUM(amount)::BIGINT AS total_amount
-	FROM transactions
-	WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3
-	GROUP BY type,category
-	ORDER BY type ASC,total_amount DESC,category ASC
+	const query = `SELECT
+	t.type,
+	t.category,
+	SUM(t.amount)::BIGINT AS total_amount
+	FROM transactions AS t
+	WHERE t.household_id = $1
+	AND t.occurred_at >=$3
+	AND t.occurred_at <$4
+	AND EXISTS (
+	SELECT 1
+	FROM household_members AS member
+	WHERE member.household_id = t.household_id
+	AND member.user_id = $2
+	AND member.status = 'active'
+	)
+	GROUP BY t.type,t.category
+	ORDER BY t.type ASC,total_amount DESC,t.category ASC
 	`
 
-	rows, err := s.db.QueryContext(ctx, query, userId, startAt, endAt)
+	rows, err := s.db.QueryContext(ctx, query, householdId, userId, startAt, endAt)
 	if err != nil {
 		return TransactionSummary{}, err
 	}
@@ -159,18 +226,46 @@ func (s *Store) SummaryByUserId(
 }
 
 // 修改账单接口
-func (s *Store) Update(ctx context.Context, userId int64, id int64, req UpdateTransactionRequest) (Transaction, error) {
+func (s *Store) Update(
+	ctx context.Context,
+	userId int64,
+	householdId int64,
+	id int64,
+	req UpdateTransactionRequest) (Transaction, error) {
 	const query = `
-		UPDATE transactions SET type =$1,amount = $2,category = $3,note = $4,occurred_at = $5
-		WHERE id = $6 AND user_id = $7
-		RETURNING id,user_id,type,amount,category,note,occurred_at,created_at
+		UPDATE transactions AS transaction
+		SET type =$1,
+		amount = $2,
+		category = $3,
+		note = $4,
+		occurred_at = $5
+		WHERE transaction.id = $6 AND transaction.household_id = $7
+		AND EXISTS(
+		SELECT 1
+		FROM household_members AS member
+		WHERE member.household_id = transaction.household_id
+		AND member.user_id = $8
+		AND member.status = 'active'
+		AND member.role IN ('owner','admin','member')
+		)
+		RETURNING
+		transaction.id,
+		transaction.household_id,
+		transaction.user_id,
+		transaction.type,
+		transaction.amount,
+		transaction.category,
+		transaction.note,
+		transaction.occurred_at,
+		transaction.created_at
 	`
 	var transaction Transaction
 
 	err := s.db.QueryRowContext(
-		ctx, query, req.Type, req.Amount, req.Category, req.Note, req.OccurredAt, id, userId,
+		ctx, query, req.Type, req.Amount, req.Category, req.Note, req.OccurredAt, id, householdId, userId,
 	).Scan(
 		&transaction.Id,
+		&transaction.HouseholdId,
 		&transaction.UserId,
 		&transaction.Type,
 		&transaction.Amount,
@@ -186,9 +281,20 @@ func (s *Store) Update(ctx context.Context, userId int64, id int64, req UpdateTr
 }
 
 // 删除账单接口
-func (s *Store) Delete(ctx context.Context, userId int64, id int64) error {
-	const query = `DELETE FROM transactions WHERE user_id = $1 AND Id = $2`
-	result, err := s.db.ExecContext(ctx, query, userId, id)
+func (s *Store) Delete(ctx context.Context, userId int64, householdId int64, id int64) error {
+	const query = `
+	DELETE FROM transactions AS transaction
+	WHERE transaction.household_id = $1 AND transaction.id = $2
+	AND EXISTS(
+	SELECT 1
+	FROM household_members AS member
+	WHERE member.household_id = transaction.household_id
+	AND member.user_id = $3
+	AND member.status = 'active'
+	AND member.role IN ('owner','admin','member')
+	)
+	`
+	result, err := s.db.ExecContext(ctx, query, householdId, id, userId)
 	if err != nil {
 		return err
 	}

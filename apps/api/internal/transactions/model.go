@@ -10,7 +10,10 @@ const (
 )
 
 type Transaction struct {
-	Id         int64           `json:"id"`
+	Id int64 `json:"id"`
+	// HouseholdId 表示这笔账属于哪个家庭。
+	HouseholdId int64 `json:"householdId"`
+	// 家庭成员共享householdId 仍需要记录谁创建的账单
 	UserId     int64           `json:"userId"`
 	Type       TransactionType `json:"type"`
 	Amount     int64           `json:"amount"`
