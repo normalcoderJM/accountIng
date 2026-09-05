@@ -72,6 +72,7 @@ const (
 
 // Household 服务端错误：50021 - 50029。
 const (
-	CreateHouseholdFailed Code = 50021
-	ListHouseholdsFailed  Code = 50022
+	CreateHouseholdFailed      Code = 50021
+	ListHouseholdsFailed       Code = 50022
+	ListHouseholdMembersFailed Code = 50023
 )

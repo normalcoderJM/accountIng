@@ -1,5 +1,6 @@
 import "package:mobile/core/api_client.dart";
 import "package:mobile/feature/household/household.dart";
+import "package:mobile/feature/household/household_member.dart";
 
 class HouseholdApi {
   const HouseholdApi({required this.apiClient});
@@ -46,5 +47,32 @@ class HouseholdApi {
     }
 
     return id.toInt();
+  }
+
+  // 获取指定家庭的有效成员列表
+  Future<List<HouseholdMember>> listMembers({required int householdId}) async {
+    if (householdId <= 0) {
+      throw const ApiException("家庭ID不正确");
+    }
+    final result = await apiClient.get(
+      "/api/v1/households/$householdId/members",
+    );
+    final data = result["data"];
+
+    if (data is! List) {
+      throw const ApiException("家庭成员列表格式不正确");
+    }
+    try {
+      return data
+          .map<HouseholdMember>((item) {
+            if (item is! Map<String, dynamic>) {
+              throw const FormatException("家庭成员列表格式不正确");
+            }
+            return HouseholdMember.fromJson(item);
+          })
+          .toList(growable: false);
+    } on FormatException {
+      throw const ApiException("家庭成员列表格式不正确");
+    }
   }
 }

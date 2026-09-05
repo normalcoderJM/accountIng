@@ -25,6 +25,7 @@ type Repository interface {
 	Create(ctx context.Context, userId int64, name string) (Household, error)
 	ListByUserId(ctx context.Context, userId int64) ([]HouseholdListItem, error)
 	GetActiveMemberRole(ctx context.Context, userId int64, householdId int64) (MemberRole, error)
+	ListActiveMembers(ctx context.Context, householdId int64) ([]HouseholdMemberListItem, error)
 }
 
 // service 负责家庭账本业务逻辑 业务规则 名称校验 超时控制等
@@ -120,4 +121,22 @@ func (s *Service) RequireWriteAccess(ctx context.Context, userId int64, househol
 	default:
 		return ErrHouseholdNotAccessible
 	}
+}
+
+// 返回指定家庭的有效成员
+func (s *Service) ListMembers(ctx context.Context, userId int64, householdId int64) ([]HouseholdMemberListItem, error) {
+	// 先检查当前用户是否属于这个家庭
+	if err := s.RequireReadAccess(ctx, userId, householdId); err != nil {
+		return nil, err
+	}
+	operationContext, cancel := context.WithTimeout(ctx, s.operationTimeout)
+	defer cancel()
+	members, err := s.repository.ListActiveMembers(operationContext, householdId)
+	if err != nil {
+		return nil, err
+	}
+	if members == nil {
+		members = make([]HouseholdMemberListItem, 0)
+	}
+	return members, nil
 }

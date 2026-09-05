@@ -94,9 +94,12 @@ class HouseholdSession extends ChangeNotifier {
     if (_selectedHousehold?.id == household.id) {
       return;
     }
+    // 先保存成功 再正式切换内存状态
+    // 避免本地保存失败 界面显示成另外一个家庭
+    await _storage.save(household.id);
+
     _selectedHousehold = household;
     notifyListeners();
-    await _storage.save(household.id);
   }
 
   // 创建家庭 并自动选择新创建的家庭

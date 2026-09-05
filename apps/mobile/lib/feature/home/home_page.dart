@@ -7,6 +7,8 @@ import 'package:mobile/feature/transaction/add_transaction.dart';
 import 'package:mobile/feature/home/transaction_day_group.dart';
 import 'package:mobile/feature/transaction/transaction_page.dart';
 import 'package:mobile/feature/transaction/transaction_summary.dart';
+import 'package:mobile/feature/household/household_session.dart';
+import 'package:mobile/feature/household/widgets/household_switcher_sheet.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -14,10 +16,14 @@ class HomePage extends StatefulWidget {
     required this.email,
     required this.onLogout,
     required this.transactionApi,
+    required this.householdSession,
+    required this.onCreateHousehold,
   });
   final String email;
   final Future<void> Function() onLogout;
   final TransactionApi transactionApi;
+  final HouseholdSession householdSession;
+  final Future<void> Function() onCreateHousehold;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -104,6 +110,79 @@ class _HomePageState extends State<HomePage> {
     });
 
     await loadTransaction(showFullScreenLoading: true);
+  }
+
+  //切换家庭 重置之前的数据
+  Future<void> _reloadSelectedHousehold() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      transactions = [];
+      summary = TransactionSummary.empty;
+      nextCursor = null;
+      hasMore = false;
+      message = "";
+      _loadMoreError = null;
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    await loadTransaction(showFullScreenLoading: true);
+  }
+
+  Future<void> _openHouseholdSwitcher() async {
+    // 当前正在请求账单时 不允许切换 避免2个家庭的数据交叉
+    if (_loadingFirstPage || _loadingMore) {
+      return;
+    }
+    final currentHousehold = widget.householdSession.selectedHousehold;
+    if (currentHousehold == null) {
+      return;
+    }
+    final selectedHousehold = await showHouseholdSwitcherSheet(
+      context: context,
+      households: widget.householdSession.households,
+      selectedHouseholdId: currentHousehold.id,
+      onCreateHousehold: () async {
+        final previousHouseholdId = widget.householdSession.selectedHouseholdId;
+
+        await widget.onCreateHousehold();
+        if (!mounted) {
+          return;
+        }
+        final currentHouseholdId = widget.householdSession.selectedHouseholdId;
+        // 创建成功后 householdSession自动选中新家庭
+        if (currentHouseholdId != null &&
+            currentHouseholdId != previousHouseholdId) {
+          await _reloadSelectedHousehold();
+        }
+      },
+    );
+    if (!mounted || selectedHousehold == null) {
+      return;
+    }
+    if (selectedHousehold.id == currentHousehold.id) {
+      return;
+    }
+    try {
+      await widget.householdSession.select(selectedHousehold);
+
+      if (!mounted) {
+        return;
+      }
+      await _reloadSelectedHousehold();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("切换家庭失败，请稍后重试"),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -365,6 +444,17 @@ class _HomePageState extends State<HomePage> {
 
   // 抽离打开弹窗逻辑
   Future<void> openTransaction(Transaction transaction) async {
+    // 添加权限判断
+    final household = widget.householdSession.selectedHousehold;
+    if (household == null || !household.canWrite) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("制度成员，不能修改账单"),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     final change = await Navigator.push<TransactionChange>(
       context,
       MaterialPageRoute(
@@ -411,10 +501,43 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentHousehold = widget.householdSession.selectedHousehold;
+    if (currentHousehold == null) {
+      return const Scaffold(body: Center(child: Text("当前没有可用家庭")));
+    }
     return Scaffold(
       appBar: AppBar(
-        title: Text("记账软件"),
-        actions: [TextButton(onPressed: widget.onLogout, child: Text("退出登录"))],
+        titleSpacing: 12,
+        title: InkWell(
+          onTap: _loadingFirstPage || _loadingMore
+              ? null
+              : _openHouseholdSwitcher,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    currentHousehold.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.keyboard_arrow_down),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: widget.onLogout,
+            tooltip: "退出登录",
+            icon: const Icon(Icons.logout_outlined),
+          ),
+        ],
       ),
       body: Builder(
         builder: (context) {
@@ -472,23 +595,25 @@ class _HomePageState extends State<HomePage> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final change = await Navigator.push<TransactionChange>(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  AddTransaction(transactionApi: widget.transactionApi),
-            ),
-          );
-          if (change != null) {
-            await loadTransaction();
-            if (!mounted) return;
-            showChangeSuccess(change);
-          }
-        },
-        child: Icon(Icons.add),
-      ),
+      floatingActionButton: currentHousehold.canWrite
+          ? FloatingActionButton(
+              onPressed: () async {
+                final change = await Navigator.push<TransactionChange>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AddTransaction(transactionApi: widget.transactionApi),
+                  ),
+                );
+                if (change != null) {
+                  await loadTransaction();
+                  if (!mounted) return;
+                  showChangeSuccess(change);
+                }
+              },
+              child: Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

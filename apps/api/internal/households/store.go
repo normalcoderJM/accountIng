@@ -112,3 +112,53 @@ func (s *Store) GetActiveMemberRole(ctx context.Context, userId int64, household
 	}
 	return role, nil
 }
+
+// 查询家庭中的所有有效成员
+func (s *Store) ListActiveMembers(ctx context.Context, householdId int64) ([]HouseholdMemberListItem, error) {
+	const query = `
+	SELECT 
+	member.id,member.user_id,users.email,member.role,member.joined_at
+	FROM household_members AS member
+	JOIN users 
+	ON users.id = member.user_id
+	WHERE member.household_id = $1
+	AND member.status = 'active'
+	ORDER BY 
+	CASE member.role
+	WHEN 'owner' THEN 1
+	WHEN 'admin' THEN 2
+	WHEN 'member' THEN 3
+	WHEN 'viewer' THEN 4
+	ELSE 5
+	END,
+	member.joined_at ASC,
+	member.id ASC
+	`
+	rows, err := s.db.QueryContext(ctx, query, householdId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	// 初始化为空切片
+	members := make([]HouseholdMemberListItem, 0)
+
+	for rows.Next() {
+		var member HouseholdMemberListItem
+
+		if err := rows.Scan(
+			&member.MemberID,
+			&member.UserID,
+			&member.Email,
+			&member.Role,
+			&member.JoinedAt,
+		); err != nil {
+			return nil, err
+		}
+		members = append(members, member)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return members, nil
+
+}

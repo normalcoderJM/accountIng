@@ -12,7 +12,7 @@ class TransactionApi {
   final ApiClient apiClient;
   final HouseholdIdProvider householdIdProvider;
 
-  int _requredHouseholdId() {
+  int _requireHouseholdId() {
     final householdId = householdIdProvider();
 
     if (householdId == null || householdId <= 0) {
@@ -22,7 +22,7 @@ class TransactionApi {
   }
 
   String _transactionsPath() {
-    final householdId = _requredHouseholdId();
+    final householdId = _requireHouseholdId();
 
     return "/api/v1/households/$householdId/transactions";
   }

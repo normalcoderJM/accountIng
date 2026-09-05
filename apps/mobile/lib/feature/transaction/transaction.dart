@@ -33,7 +33,6 @@ class Transaction {
     final amount = json['amount'];
     final createdAt = json['createdAt'];
     final occurredAt = json["occurredAt"];
-
     if (id is! num ||
         id.toInt() <= 0 ||
         householdId is! num ||
@@ -49,8 +48,10 @@ class Transaction {
         occurredAt is! String) {
       throw const FormatException("账单数据格式不正确");
     }
+    final parsedCreatedAt = DateTime.tryParse(createdAt);
+    final parsedOccurredAt = DateTime.tryParse(occurredAt);
 
-    if (parsedCreatedAt == null || parseOccurredAt == null) {
+    if (parsedCreatedAt == null || parsedOccurredAt == null) {
       throw const FormatException("账单时间格式不正确");
     }
 

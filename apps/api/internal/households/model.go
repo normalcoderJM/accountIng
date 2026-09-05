@@ -34,3 +34,12 @@ type HouseholdListItem struct {
 type CreateHouseholdRequest struct {
 	Name string `json:"name" binding:"required,max=40"`
 }
+
+// 家庭成员列表数据
+type HouseholdMemberListItem struct {
+	MemberID int64      `json:"memberId"`
+	UserID   int64      `json:"userId"`
+	Email    string     `json:"email"`
+	Role     MemberRole `json:"role"`
+	JoinedAt time.Time  `json:"joinedAt"`
+}

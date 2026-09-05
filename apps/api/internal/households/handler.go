@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/normalcoderJM/accountIng/apps/api/internal/auth"
@@ -15,6 +16,7 @@ import (
 type HouseholdService interface {
 	Create(ctx context.Context, userId int64, request CreateHouseholdRequest) (Household, error)
 	List(ctx context.Context, userId int64) ([]HouseholdListItem, error)
+	ListMembers(ctx context.Context, userId int64, householdId int64) ([]HouseholdMemberListItem, error)
 }
 
 type Handle struct {
@@ -29,6 +31,7 @@ func NewHandle(service HouseholdService) *Handle {
 func (h *Handle) RegisterRouter(router *gin.RouterGroup) {
 	router.GET("/households", h.List)
 	router.POST("/households", h.Create)
+	router.GET("/households/:householdId/members", h.ListMembers)
 }
 
 func (h *Handle) Create(c *gin.Context) {
@@ -71,4 +74,30 @@ func (h *Handle) List(c *gin.Context) {
 		return
 	}
 	response.Success(c, items)
+}
+
+func (h *Handle) ListMembers(c *gin.Context) {
+	userId, ok := auth.UserIDFromContext(c)
+	if !ok {
+		response.Error(c, http.StatusInternalServerError, errorcode.InvalidUserContext, "用户上下文错误")
+		return
+	}
+	householdId, err := strconv.ParseInt(c.Param("householdId"), 10, 64)
+	if err != nil || householdId <= 0 {
+		response.Error(c, http.StatusBadRequest, errorcode.InvalidHouseholdID, "家庭ID不正确")
+		return
+	}
+
+	members, err := h.service.ListMembers(c.Request.Context(), userId, householdId)
+	if err != nil {
+		if errors.Is(err, ErrHouseholdNotAccessible) {
+			response.Error(c, http.StatusNotFound, errorcode.HouseholdNotAccessible, "家庭不存在或无权访问")
+			return
+		}
+		log.Printf("list household members failed: userId=%d householdId=%d err=%v", userId, householdId, err)
+
+		response.Error(c, http.StatusInternalServerError, errorcode.ListHouseholdMembersFailed, "获取家庭成员失败，请稍后重试")
+		return
+	}
+	response.Success(c, members)
 }
