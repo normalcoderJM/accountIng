@@ -66,6 +66,10 @@ func (h *Handle) Register(c *gin.Context) {
 	// 创建用户
 	result, err := h.service.Register(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
+		if errors.Is(err, ErrPasswordTooLong) {
+			response.Error(c, http.StatusBadRequest, errorcode.InvalidRegisterData, "密码过长，最多 72 字节")
+			return
+		}
 		// 邮箱是否重复注册
 		if errors.Is(err, ErrEmailAlreadyRegistered) {
 			response.Error(c, http.StatusConflict, errorcode.EmailAlreadyRegistered, "邮箱已注册")
@@ -92,6 +96,10 @@ func (h *Handle) Login(c *gin.Context) {
 	// 根据邮箱查找用户名
 	result, err := h.service.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
+		if errors.Is(err, ErrPasswordTooLong) {
+			response.Error(c, http.StatusBadRequest, errorcode.InvalidLoginData, "密码过长，最多 72 字节")
+			return
+		}
 		if errors.Is(err, ErrInvalidCredentials) {
 			// 不告诉客户端究竟是邮箱不存在还是密码错误，
 			// 避免别人利用接口探测哪些邮箱已经注册。

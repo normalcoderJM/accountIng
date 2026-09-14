@@ -132,4 +132,43 @@ void main() {
     expect(find.text("两次输入的密码不一致"), findsOneWidget);
     expect(gateway.registeredEmail, isNull);
   });
+
+  testWidgets("注册密码超过 bcrypt 字节限制时应该阻止请求", (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final gateway = FakeAuthGateway();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AuthPage(
+          authApi: gateway,
+          tokenStorage: TokenStorage(),
+          onLoginSuccess: () async {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text("注册"));
+    await tester.pumpAndSettle();
+    const password = "这是一个超过二十四个汉字并且会超过七十二字节的测试密码内容";
+    await tester.enterText(
+      find.byKey(const ValueKey("auth-email-field")),
+      "new@example.com",
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey("auth-password-field")),
+      password,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey("auth-confirm-password-field")),
+      password,
+    );
+    final submitButton = find.byKey(const ValueKey("auth-submit-button"));
+    await tester.ensureVisible(submitButton);
+    await tester.tap(submitButton);
+    await tester.pump();
+
+    expect(find.text("密码过长，最多 72 字节"), findsOneWidget);
+    expect(gateway.registeredEmail, isNull);
+  });
 }

@@ -76,6 +76,28 @@ func TestServiceRegisterReturnsSessionAndNormalizesEmail(t *testing.T) {
 	}
 }
 
+func TestServiceRegisterRejectsPasswordOverBcryptLimit(t *testing.T) {
+	repository := &fakeAuthRepository{}
+	service := NewService(
+		repository,
+		"test-jwt-secret-with-at-least-32-characters",
+		time.Second,
+	)
+
+	_, err := service.Register(
+		context.Background(),
+		"new@example.com",
+		"这是一个超过二十四个汉字并且会超过七十二字节的测试密码内容",
+	)
+
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Fatalf("超出 bcrypt 限制时应该返回 ErrPasswordTooLong，实际得到: %v", err)
+	}
+	if repository.createdEmail != "" {
+		t.Fatal("密码过长时不应该写入 Repository")
+	}
+}
+
 func (f *fakeAuthRepository) GetUserByEmail(
 	ctx context.Context,
 	email string,

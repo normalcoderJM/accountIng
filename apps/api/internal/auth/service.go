@@ -19,7 +19,10 @@ var (
 	ErrEmailAlreadyRegistered = errors.New("email already registered")
 	ErrInvalidCredentials     = errors.New("invalid credentials")
 	ErrCurrentUserNotFound    = errors.New("current user not found")
+	ErrPasswordTooLong        = errors.New("password exceeds bcrypt byte limit")
 )
+
+const maxPasswordBytes = 72
 
 // Repository 定义 Auth Service 需要的数据操作。
 //
@@ -52,6 +55,10 @@ func NewService(
 }
 
 func (s *Service) Register(ctx context.Context, email string, password string) (LoginResponse, error) {
+	if len([]byte(password)) > maxPasswordBytes {
+		return LoginResponse{}, ErrPasswordTooLong
+	}
+
 	// 邮箱去掉空格统一转成小写 避免Test@qq.com和test@qq.com被当成两个账户
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 	// 密码只能用于生成哈希 不能记录日志
@@ -81,6 +88,10 @@ func (s *Service) Register(ctx context.Context, email string, password string) (
 }
 
 func (s *Service) Login(ctx context.Context, email string, password string) (LoginResponse, error) {
+	if len([]byte(password)) > maxPasswordBytes {
+		return LoginResponse{}, ErrPasswordTooLong
+	}
+
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 
 	operationContext, cancel := context.WithTimeout(ctx, s.operationTimeout)

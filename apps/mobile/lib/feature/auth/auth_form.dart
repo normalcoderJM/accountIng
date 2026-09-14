@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile/theme/app_dimensions.dart';
@@ -73,11 +75,11 @@ class _AuthFormState extends State<AuthForm> {
     if (password.isEmpty) {
       return "请输入密码";
     }
-    if (password.length < 6) {
+    if (password.runes.length < 6) {
       return "密码至少需要 6 个字符";
     }
-    if (password.length > 72) {
-      return "密码不能超过 72 个字符";
+    if (password.runes.length > 72 || utf8.encode(password).length > 72) {
+      return "密码过长，最多 72 字节";
     }
     return null;
   }
