@@ -13,6 +13,10 @@ import (
 //
 // 它不会连接 PostgreSQL，只返回测试预设的数据。
 type fakeAuthRepository struct {
+	createUser       User
+	createUserError  error
+	createdEmail     string
+	createdPassword  string
 	userByEmail      User
 	userByEmailError error
 }
@@ -22,7 +26,54 @@ func (f *fakeAuthRepository) CreateUser(
 	email string,
 	password string,
 ) (User, error) {
-	return User{}, nil
+	f.createdEmail = email
+	f.createdPassword = password
+	if f.createUserError != nil {
+		return User{}, f.createUserError
+	}
+	return f.createUser, nil
+}
+
+func TestServiceRegisterReturnsSessionAndNormalizesEmail(t *testing.T) {
+	repository := &fakeAuthRepository{
+		createUser: User{
+			Id:    11,
+			Email: "new@example.com",
+		},
+	}
+	service := NewService(
+		repository,
+		"test-jwt-secret-with-at-least-32-characters",
+		time.Second,
+	)
+
+	result, err := service.Register(
+		context.Background(),
+		"  NEW@Example.COM ",
+		"password123",
+	)
+	if err != nil {
+		t.Fatalf("注册不应该失败: %v", err)
+	}
+
+	if repository.createdEmail != "new@example.com" {
+		t.Fatalf("邮箱没有正确归一化，实际得到 %q", repository.createdEmail)
+	}
+	if repository.createdPassword == "password123" {
+		t.Fatal("保存到 Repository 的密码不应该是明文")
+	}
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(repository.createdPassword),
+		[]byte("password123"),
+	); err != nil {
+		t.Fatalf("保存的密码不是原密码对应的 bcrypt 哈希: %v", err)
+	}
+	if result.Token == "" {
+		t.Fatal("注册成功后应该返回 Token")
+	}
+	if result.User.Id != 11 || result.User.Email != "new@example.com" {
+		t.Fatalf("注册响应用户不正确: %+v", result.User)
+	}
 }
 
 func (f *fakeAuthRepository) GetUserByEmail(

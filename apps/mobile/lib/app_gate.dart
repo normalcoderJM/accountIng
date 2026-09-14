@@ -84,15 +84,8 @@ class _AppGateState extends State<AppGate> {
         });
         return;
       }
-      final result = await authApi.me();
-      final data = result["data"];
-      if (data is! Map<String, dynamic>) {
-        throw const ApiException("用户数据格式不正确");
-      }
-      final userEmail = data["email"];
-      if (userEmail is! String || userEmail.trim().isEmpty) {
-        throw const ApiException("用户数据格式不正确");
-      }
+      // 将结果全部交给authApi类
+      final user = await authApi.me();
 
       // 登录状态通过后 再加载这个用户加入的家庭
       await householdSession.load();
@@ -102,7 +95,7 @@ class _AppGateState extends State<AppGate> {
 
       setState(() {
         loading = false;
-        email = userEmail.trim();
+        email = user.email;
         startupError = null;
       });
     } on UnauthorizedException {

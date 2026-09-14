@@ -27,7 +27,7 @@ func (s *Store) CreateUser(ctx context.Context, email string, password string) (
 		&user.Id,
 		&user.Email,
 		&user.Password,
-		&user.CreateAt,
+		&user.CreatedAt,
 	)
 	if err != nil {
 		return User{}, err
@@ -45,7 +45,7 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (User, error) 
 		&user.Id,
 		&user.Password,
 		&user.Email,
-		&user.CreateAt,
+		&user.CreatedAt,
 	)
 	if err != nil {
 		return User{}, err
@@ -61,7 +61,7 @@ func (s *Store) GetUserById(ctx context.Context, id int64) (User, error) {
 		&user.Id,
 		&user.Password,
 		&user.Email,
-		&user.CreateAt,
+		&user.CreatedAt,
 	)
 	if err != nil {
 		return User{}, err

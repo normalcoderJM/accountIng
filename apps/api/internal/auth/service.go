@@ -16,9 +16,9 @@ import (
 // Handler 后续通过 errors.Is() 判断错误类型，
 // 再决定返回 401、409 或 500。
 var (
-	ErrMailAlreadyRegistered = errors.New("email already registered")
-	ErrInvalidCredentials    = errors.New("invalid credentrails")
-	ErrCurrentUserNotFound   = errors.New("current user not found")
+	ErrEmailAlreadyRegistered = errors.New("email already registered")
+	ErrInvalidCredentials     = errors.New("invalid credentials")
+	ErrCurrentUserNotFound    = errors.New("current user not found")
 )
 
 // Repository 定义 Auth Service 需要的数据操作。
@@ -51,13 +51,13 @@ func NewService(
 	}
 }
 
-func (s *Service) Register(ctx context.Context, email string, password string) (User, error) {
+func (s *Service) Register(ctx context.Context, email string, password string) (LoginResponse, error) {
 	// 邮箱去掉空格统一转成小写 避免Test@qq.com和test@qq.com被当成两个账户
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 	// 密码只能用于生成哈希 不能记录日志
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return User{}, fmt.Errorf("hash password:%w", err)
+		return LoginResponse{}, fmt.Errorf("hash password: %w", err)
 	}
 	operationContext, cancel := context.WithTimeout(ctx, s.operationTimeout)
 	defer cancel()
@@ -67,11 +67,17 @@ func (s *Service) Register(ctx context.Context, email string, password string) (
 	)
 	if err != nil {
 		if IsDuplicateEmail(err) {
-			return User{}, ErrMailAlreadyRegistered
+			return LoginResponse{}, ErrEmailAlreadyRegistered
 		}
-		return User{}, fmt.Errorf("create user%w", err)
+		return LoginResponse{}, fmt.Errorf("create user: %w", err)
 	}
-	return user, nil
+
+	token, err := GenerateToken(user, s.jwtSecret)
+	if err != nil {
+		return LoginResponse{}, fmt.Errorf("generate registration token: %w", err)
+	}
+
+	return LoginResponse{Token: token, User: user}, nil
 }
 
 func (s *Service) Login(ctx context.Context, email string, password string) (LoginResponse, error) {

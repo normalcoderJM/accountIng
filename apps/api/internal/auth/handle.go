@@ -19,7 +19,7 @@ type AuthService interface {
 		ctx context.Context,
 		email string,
 		password string,
-	) (User, error)
+	) (LoginResponse, error)
 
 	Login(
 		ctx context.Context,
@@ -64,10 +64,10 @@ func (h *Handle) Register(c *gin.Context) {
 	}
 
 	// 创建用户
-	user, err := h.service.Register(c.Request.Context(), req.Email, req.Password)
+	result, err := h.service.Register(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		// 邮箱是否重复注册
-		if errors.Is(err, ErrMailAlreadyRegistered) {
+		if errors.Is(err, ErrEmailAlreadyRegistered) {
 			response.Error(c, http.StatusConflict, errorcode.EmailAlreadyRegistered, "邮箱已注册")
 			return
 		}
@@ -77,7 +77,7 @@ func (h *Handle) Register(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, errorcode.CreateUserFailed, "注册失败，请稍后再试")
 		return
 	}
-	response.Success(c, user)
+	response.Created(c, result)
 
 }
 
