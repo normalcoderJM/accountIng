@@ -3,6 +3,7 @@ package households
 import (
 	"context"
 	"database/sql"
+	"errors"
 )
 
 type Store struct {
@@ -161,4 +162,44 @@ func (s *Store) ListActiveMembers(ctx context.Context, householdId int64) ([]Hou
 	}
 	return members, nil
 
+}
+
+// AddMemberByEmail 将已注册用户加入家庭；曾经退出的成员会重新激活。
+func (s *Store) AddMemberByEmail(ctx context.Context, householdId int64, email string, role MemberRole) (HouseholdMemberListItem, error) {
+	var member HouseholdMemberListItem
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT id,email FROM users WHERE email = $1`,
+		email,
+	).Scan(&member.UserID, &member.Email)
+	if errors.Is(err, sql.ErrNoRows) {
+		return HouseholdMemberListItem{}, ErrInviteeNotFound
+	}
+	if err != nil {
+		return HouseholdMemberListItem{}, err
+	}
+
+	err = s.db.QueryRowContext(
+		ctx,
+		`INSERT INTO household_members(household_id,user_id,role,status)
+		 VALUES($1,$2,$3,'active')
+		 ON CONFLICT (household_id,user_id) DO UPDATE
+		 SET role = EXCLUDED.role,
+		     status = 'active',
+		     joined_at = NOW(),
+		     updated_at = NOW()
+		 WHERE household_members.status = 'left'
+		 RETURNING id,joined_at`,
+		householdId,
+		member.UserID,
+		role,
+	).Scan(&member.MemberID, &member.JoinedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return HouseholdMemberListItem{}, ErrMemberAlreadyActive
+	}
+	if err != nil {
+		return HouseholdMemberListItem{}, err
+	}
+	member.Role = role
+	return member, nil
 }

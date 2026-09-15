@@ -35,6 +35,11 @@ type CreateHouseholdRequest struct {
 	Name string `json:"name" binding:"required,max=40"`
 }
 
+// AddHouseholdMemberRequest 是 MVP 邀请请求：只允许添加已注册用户。
+type AddHouseholdMemberRequest struct {
+	Email string `json:"email" binding:"required,email,max=254"`
+}
+
 // 家庭成员列表数据
 type HouseholdMemberListItem struct {
 	MemberID int64      `json:"memberId"`

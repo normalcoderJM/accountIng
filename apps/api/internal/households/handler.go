@@ -14,9 +14,10 @@ import (
 )
 
 type HouseholdService interface {
-	Create(ctx context.Context, userId int64, request CreateHouseholdRequest) (Household, error)
+	Create(ctx context.Context, userId int64, request CreateHouseholdRequest) (HouseholdListItem, error)
 	List(ctx context.Context, userId int64) ([]HouseholdListItem, error)
 	ListMembers(ctx context.Context, userId int64, householdId int64) ([]HouseholdMemberListItem, error)
+	AddMember(ctx context.Context, userId int64, householdId int64, request AddHouseholdMemberRequest) (HouseholdMemberListItem, error)
 }
 
 type Handle struct {
@@ -32,6 +33,46 @@ func (h *Handle) RegisterRouter(router *gin.RouterGroup) {
 	router.GET("/households", h.List)
 	router.POST("/households", h.Create)
 	router.GET("/households/:householdId/members", h.ListMembers)
+	router.POST("/households/:householdId/members", h.AddMember)
+}
+
+func (h *Handle) AddMember(c *gin.Context) {
+	userId, ok := auth.UserIDFromContext(c)
+	if !ok {
+		response.Error(c, http.StatusInternalServerError, errorcode.InvalidUserContext, "用户上下文错误")
+		return
+	}
+	householdId, err := strconv.ParseInt(c.Param("householdId"), 10, 64)
+	if err != nil || householdId <= 0 {
+		response.Error(c, http.StatusBadRequest, errorcode.InvalidHouseholdID, "家庭ID不正确")
+		return
+	}
+	var request AddHouseholdMemberRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.Error(c, http.StatusBadRequest, errorcode.InvalidHouseholdMemberData, "请输入正确的已注册邮箱")
+		return
+	}
+
+	member, err := h.service.AddMember(c.Request.Context(), userId, householdId, request)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidMemberEmail):
+			response.Error(c, http.StatusBadRequest, errorcode.InvalidHouseholdMemberData, "请输入正确的已注册邮箱")
+		case errors.Is(err, ErrHouseholdNotAccessible):
+			response.Error(c, http.StatusNotFound, errorcode.HouseholdNotAccessible, "家庭不存在或无权访问")
+		case errors.Is(err, ErrHouseholdManageForbidden):
+			response.Error(c, http.StatusForbidden, errorcode.HouseholdManageForbidden, "只有家庭拥有者或管理员可以添加成员")
+		case errors.Is(err, ErrInviteeNotFound):
+			response.Error(c, http.StatusNotFound, errorcode.HouseholdInviteeNotFound, "该邮箱尚未注册")
+		case errors.Is(err, ErrMemberAlreadyActive):
+			response.Error(c, http.StatusConflict, errorcode.HouseholdMemberAlreadyExists, "该用户已经是家庭成员")
+		default:
+			log.Printf("add household member failed: userId=%d householdId=%d err=%v", userId, householdId, err)
+			response.Error(c, http.StatusInternalServerError, errorcode.AddHouseholdMemberFailed, "添加家庭成员失败，请稍后重试")
+		}
+		return
+	}
+	response.Created(c, member)
 }
 
 func (h *Handle) Create(c *gin.Context) {

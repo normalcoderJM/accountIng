@@ -48,6 +48,8 @@ class _AppGateState extends State<AppGate> {
       householdApi: householdApi,
       storage: SelectedHouseholdStorage(),
     );
+    // 观察householdSession
+    householdSession.addListener(_handleHouseholdSessionChanged);
     // 账单api 不存储固定的家庭id 每次发送请求时 通关函数读取最新选中的家庭
     transactionApi = TransactionApi(
       apiClient: widget.apiClient,
@@ -60,9 +62,16 @@ class _AppGateState extends State<AppGate> {
 
   @override
   void dispose() {
-    // householdSessin继承changeNotifier 创建者AppGate负责在销毁时释放它
+    // 销毁绑定 再销毁session
+    householdSession.removeListener(_handleHouseholdSessionChanged);
     householdSession.dispose();
     super.dispose();
+  }
+
+  void _handleHouseholdSessionChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> checkLogin() async {
@@ -120,6 +129,9 @@ class _AppGateState extends State<AppGate> {
   }
 
   Future<void> logout() async {
+    if (mounted) {
+      setState(() => loading = true);
+    }
     // 家庭状态和本地家庭id都要清除
     await householdSession.clear();
     // 清除token
@@ -151,11 +163,6 @@ class _AppGateState extends State<AppGate> {
         },
       ),
     );
-    if (!mounted || email == null) {
-      return;
-    }
-    // pus 对应的页面关闭后 重新执行build 如果家庭创建成功 此时selectedHousehold已经有值 build 将进入HomePage
-    setState(() {});
   }
 
   Widget buildStartupError() {
@@ -218,6 +225,7 @@ class _AppGateState extends State<AppGate> {
       email: email!,
       onLogout: logout,
       transactionApi: transactionApi,
+      householdApi: householdApi,
       householdSession: householdSession,
       onCreateHousehold: openCreateHousehold,
     );

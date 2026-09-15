@@ -110,20 +110,9 @@ class HouseholdSession extends ChangeNotifier {
       throw const ApiException("家庭名称长度必须在2-40字符之间");
     }
 
-    final createHouseholdId = await _householdApi.create(name: normalizedName);
-    // 创建接口返回的数据没有memberCount和role 所以创建后重新请求家庭列表
-    await load();
-    Household? createdHousehold;
-    for (final household in _households) {
-      if (household.id == createHouseholdId) {
-        createdHousehold = household;
-        break;
-      }
-    }
-
-    if (createdHousehold == null) {
-      throw const ApiException("家庭已创建，但暂时无法读取家庭信息");
-    }
+    final createdHousehold = await _householdApi.create(name: normalizedName);
+    // 将新创建的列表变成一个不可修改的列表 只能用新数据替换旧数据 强制变更内存地址 驱使更新视图
+    _households = List.unmodifiable([..._households, createdHousehold]);
     await select(createdHousehold);
   }
 

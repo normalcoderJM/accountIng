@@ -53,12 +53,17 @@ const (
 const (
 	InvalidHouseholdCreateData Code = 40021
 	InvalidHouseholdID         Code = 40022
+	InvalidHouseholdMemberData Code = 40023
 
 	// viewer 尝试新增、修改或删除家庭账单。
-	HouseholdReadOnly Code = 40321
+	HouseholdReadOnly        Code = 40321
+	HouseholdManageForbidden Code = 40322
 
 	// 家庭不存在，或者当前用户不是该家庭成员。
-	HouseholdNotAccessible Code = 40421
+	HouseholdNotAccessible   Code = 40421
+	HouseholdInviteeNotFound Code = 40422
+
+	HouseholdMemberAlreadyExists Code = 40921
 )
 
 // Transaction 服务端错误：50011 - 50019。
@@ -75,4 +80,5 @@ const (
 	CreateHouseholdFailed      Code = 50021
 	ListHouseholdsFailed       Code = 50022
 	ListHouseholdMembersFailed Code = 50023
+	AddHouseholdMemberFailed   Code = 50024
 )

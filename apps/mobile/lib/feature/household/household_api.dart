@@ -29,9 +29,8 @@ class HouseholdApi {
     }
   }
 
-  // 创建家庭并返回新家庭的id 后端创建接口目前返回Household数据库实体  获取role和memberCount等列表信息
-  // 这里暂时只读取id 创建完成后重新请求list
-  Future<int> create({required String name}) async {
+  // 创建家庭后直接返回当前用户可使用的家庭视图。
+  Future<Household> create({required String name}) async {
     final result = await apiClient.post(
       "/api/v1/households",
       body: {"name": name.trim()},
@@ -41,12 +40,11 @@ class HouseholdApi {
     if (data is! Map<String, dynamic>) {
       throw const ApiException("创建家庭的返回数据格式不正确");
     }
-    final id = data['id'];
-    if (id is! num || id.toInt() <= 0) {
+    try {
+      return Household.fromJson(data);
+    } on FormatException {
       throw const ApiException("创建家庭的返回数据格式不正确");
     }
-
-    return id.toInt();
   }
 
   // 获取指定家庭的有效成员列表
