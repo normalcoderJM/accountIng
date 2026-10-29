@@ -143,6 +143,10 @@ class _HomePageState extends State<HomePage> {
             (pageContext) => HouseholdOverviewPage(
               household: household,
               householdApi: widget.householdApi,
+              //通过家庭id和家庭成员数量变更驱动视图更新
+              onMemberCountChanged: (count) {
+                widget.householdSession.updateMemberCount(household.id, count);
+              },
               onUnauthorized: () async {
                 if (pageContext.mounted) Navigator.of(pageContext).pop();
                 await widget.onLogout();
@@ -296,10 +300,10 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         actions: [
-          IconButton(
+          TextButton.icon(
             onPressed: _ledgerController.busy ? null : _openHouseholdOverview,
-            tooltip: '家庭成员',
             icon: const Icon(Icons.group_outlined),
+            label: const Text('成员'),
           ),
           IconButton(
             onPressed: widget.onLogout,

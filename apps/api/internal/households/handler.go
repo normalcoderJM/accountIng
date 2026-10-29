@@ -88,8 +88,12 @@ func (h *Handle) Create(c *gin.Context) {
 	}
 	household, err := h.service.Create(c.Request.Context(), userId, request)
 	if err != nil {
-		if errors.Is(err, ErrInvalidHouseholdName) {
+		switch {
+		case errors.Is(err, ErrInvalidHouseholdName):
 			response.Error(c, http.StatusBadRequest, errorcode.InvalidHouseholdCreateData, "家庭名称不能为空，2-40字符之间")
+			return
+		case errors.Is(err, ErrHouseholdNameDuplicate):
+			response.Error(c, http.StatusConflict, errorcode.HouseholdNameDuplicate, "你已经创建过同名家庭")
 			return
 		}
 

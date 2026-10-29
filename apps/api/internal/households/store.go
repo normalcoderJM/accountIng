@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Store struct {
@@ -38,6 +40,12 @@ func (s *Store) Create(ctx context.Context, userId int64, name string) (Househol
 		&household.UpdatedAt,
 	)
 	if err != nil {
+		var postgresError *pgconn.PgError
+		if errors.As(err, &postgresError) &&
+			postgresError.Code == "23505" &&
+			postgresError.ConstraintName == "idx_households_creator_normalized_name_unique" {
+			return Household{}, ErrHouseholdNameDuplicate
+		}
 		return Household{}, err
 	}
 	const createOwnerQuery = `

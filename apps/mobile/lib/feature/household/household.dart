@@ -59,6 +59,16 @@ class Household {
 
   bool get canWrite => role.canWrite;
   bool get canManageMembers => role.canManageMembers;
+  // 返回新对象，避免外部直接修改当前家庭数据；视图更新仍由 notifyListeners 触发。
+  Household copyWith({int? memberCount}) {
+    return Household(
+      id: id,
+      name: name,
+      role: role,
+      memberCount: memberCount ?? this.memberCount,
+      createdAt: createdAt,
+    );
+  }
 
   factory Household.fromJson(Map<String, dynamic> json) {
     final id = json["id"];

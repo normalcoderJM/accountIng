@@ -7,7 +7,7 @@ import "package:mobile/feature/household/household_api.dart";
 import "package:mobile/feature/household/selected_household_storage.dart";
 
 // householdSession管理当前登录用户的家庭状态
-// 它的声明周期和登录会话保持一致
+// 它的生命周期和登录会话保持一致
 // 登录成功--->加载家庭
 // 切换家庭--->通知首页重新加载账单
 // 退出登录--->清理家庭状态
@@ -111,9 +111,27 @@ class HouseholdSession extends ChangeNotifier {
     }
 
     final createdHousehold = await _householdApi.create(name: normalizedName);
-    // 将新创建的列表变成一个不可修改的列表 只能用新数据替换旧数据 强制变更内存地址 驱使更新视图
+    // 对外保持只读数据；真正通知视图更新的是 select 内的 notifyListeners。
     _households = List.unmodifiable([..._households, createdHousehold]);
     await select(createdHousehold);
+  }
+
+  //  选择家庭 通知视图更新
+  void updateMemberCount(int householdId, int memberCount) {
+    if (memberCount < 0) return;
+    _households = List.unmodifiable(
+      _households.map(
+        (household) => household.id == householdId
+            ? household.copyWith(memberCount: memberCount)
+            : household,
+      ),
+    );
+    if (_selectedHousehold?.id == householdId) {
+      _selectedHousehold = _households.firstWhere(
+        (household) => household.id == householdId,
+      );
+    }
+    notifyListeners();
   }
 
   // 退出登录时清理内存和本地选择

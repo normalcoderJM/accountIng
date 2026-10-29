@@ -21,6 +21,7 @@ var (
 	ErrInvalidMemberEmail       = errors.New("invalid household member email")
 	ErrInviteeNotFound          = errors.New("invitee not found")
 	ErrMemberAlreadyActive      = errors.New("household member already active")
+	ErrHouseholdNameDuplicate   = errors.New("household name already exists")
 )
 
 // repository 定义service所需要的数据访问能力

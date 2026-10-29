@@ -73,4 +73,27 @@ class HouseholdApi {
       throw const ApiException("家庭成员列表格式不正确");
     }
   }
+
+  // 添加成员
+  Future<HouseholdMember> addMember({
+    required int householdId,
+    required String email,
+  }) async {
+    if (householdId <= 0) {
+      throw const ApiException("家庭ID不正确");
+    }
+    final result = await apiClient.post(
+      "/api/v1/households/$householdId/members",
+      body: {"email": email.trim().toLowerCase()},
+    );
+    final data = result["data"];
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException("新增家庭成员的返回数据格式不正确");
+    }
+    try {
+      return HouseholdMember.fromJson(data);
+    } on FormatException {
+      throw const ApiException("新增家庭成员的返回数据格式不正确");
+    }
+  }
 }

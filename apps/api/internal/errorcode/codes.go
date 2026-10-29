@@ -64,6 +64,7 @@ const (
 	HouseholdInviteeNotFound Code = 40422
 
 	HouseholdMemberAlreadyExists Code = 40921
+	HouseholdNameDuplicate       Code = 40922
 )
 
 // Transaction 服务端错误：50011 - 50019。
